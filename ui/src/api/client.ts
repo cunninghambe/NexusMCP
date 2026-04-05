@@ -212,6 +212,26 @@ export async function getAgents(): Promise<User[]> {
   }));
 }
 
+export interface ChannelMember {
+  id: string;
+  membershipId: string;
+  channelId: string;
+  role: string;
+  joinedAt: string;
+  kind: 'agent' | 'user';
+  name: string;
+  keyName: string | null;
+  status: string;
+}
+
+export async function getChannelMembers(channelId: string): Promise<ChannelMember[]> {
+  const res = await fetch(`${API_BASE}/channels/${channelId}/members`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`Failed to fetch channel members: ${res.status}`);
+  return res.json();
+}
+
 export function createWebSocket(url?: string): WebSocket | null {
   const wsUrl = url || `${API_BASE.replace(/^http/, 'ws')}/ws`;
   try {

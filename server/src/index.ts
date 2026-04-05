@@ -29,6 +29,7 @@ import loginRouter from "./routes/login.js";
 import { requestMetrics, errorTracker, rateLimiter } from "./middleware/monitoring.js";
 import { correlationId } from "./middleware/correlation.js";
 import { logger } from "./utils/logger.js";
+import { enrollAgentsInChannels } from "./utils/agent-membership.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 3200;
@@ -172,6 +173,11 @@ const server = httpServer.listen(PORT, () => {
     metrics: `http://localhost:${PORT}/api/metrics`,
     environment: process.env.NODE_ENV ?? "development",
   });
+
+  // Auto-enroll all Paperclip agents into #general on startup (fire-and-forget)
+  enrollAgentsInChannels(["aaaaaaaa-0000-0000-0000-000000000001"]).catch(
+    (err) => logger.warn("Agent enrollment startup error", { error: String(err) })
+  );
 });
 
 async function shutdown() {

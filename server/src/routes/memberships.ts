@@ -11,6 +11,7 @@
  */
 import { Router, Request, Response } from "express";
 import { z } from "zod";
+import * as fs from "fs";
 import {
   db,
   channels,
@@ -23,6 +24,61 @@ import { eq, and, isNull, or, inArray } from "drizzle-orm";
 import { authenticate, requireCompany } from "../middleware/auth.js";
 import { logActivity, paramStr, asyncHandler } from "../utils/helpers.js";
 import { COMPANY_ID } from "../config.js";
+import { logger } from "../utils/logger.js";
+
+// ── Paperclip agent status lookup ───────────────────────────────────────────
+
+function loadPaperclipApiKey(): string | null {
+  if (process.env.PAPERCLIP_API_KEY) return process.env.PAPERCLIP_API_KEY;
+  try {
+    const configPath = `${process.env.HOME ?? "/root"}/.claude.json`;
+    const raw = fs.readFileSync(configPath, "utf-8");
+    const parsed = JSON.parse(raw);
+    return parsed?.mcpServers?.paperclip?.env?.PAPERCLIP_API_KEY ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const PAPERCLIP_API_BASE =
+  process.env.PAPERCLIP_API_URL ?? "http://localhost:3100/api";
+
+/** Fetch agent statuses keyed by agent ID. Returns empty map on failure. */
+async function fetchAgentStatuses(
+  agentIds: string[]
+): Promise<Map<string, string>> {
+  const statusMap = new Map<string, string>();
+  if (agentIds.length === 0) return statusMap;
+
+  const apiKey = loadPaperclipApiKey();
+  if (!apiKey) return statusMap;
+
+  try {
+    const url = `${PAPERCLIP_API_BASE}/companies/${COMPANY_ID}/agents`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!response.ok) return statusMap;
+
+    const data = await response.json();
+    const agents: Array<{ id: string; status: string }> = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.agents)
+      ? data.agents
+      : [];
+
+    const idSet = new Set(agentIds);
+    for (const agent of agents) {
+      if (idSet.has(agent.id)) {
+        statusMap.set(agent.id, agent.status ?? "idle");
+      }
+    }
+  } catch (err) {
+    logger.warn("Failed to fetch agent statuses for member list", { error: String(err) });
+  }
+
+  return statusMap;
+}
 
 const router = Router();
 
@@ -147,19 +203,34 @@ router.get(
         eq(channelMemberships.userId, authUsers.id)
       );
 
-    const members = memberships.map((m) => ({
-      id: m.id,
-      channelId: m.channelId,
-      role: m.role,
-      joinedAt: m.joinedAt,
-      kind: m.agentId ? "agent" : "user",
-      agentId: m.agentId,
-      userId: m.userId,
-      name: m.agentName ?? m.userName ?? "Unknown",
-      keyName: m.agentKeyName ?? null,
-    }));
+    // Fetch live statuses for agent members from Paperclip API
+    const agentIds = memberships
+      .filter((m) => m.agentId != null)
+      .map((m) => m.agentId as string);
 
-    res.json({ members, count: members.length });
+    const agentStatuses = await fetchAgentStatuses(agentIds);
+
+    const members = memberships.map((m) => {
+      const isAgent = m.agentId != null;
+      const memberId = isAgent ? m.agentId! : m.userId!;
+      const status = isAgent
+        ? (agentStatuses.get(m.agentId!) ?? "idle")
+        : "online";
+
+      return {
+        id: memberId,
+        membershipId: m.id,
+        channelId: m.channelId,
+        role: m.role,
+        joinedAt: m.joinedAt,
+        kind: isAgent ? "agent" : "user",
+        name: m.agentName ?? m.userName ?? "Unknown",
+        keyName: m.agentKeyName ?? null,
+        status,
+      };
+    });
+
+    res.json(members);
   })
 );
 
