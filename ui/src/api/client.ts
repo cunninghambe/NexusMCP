@@ -124,7 +124,7 @@ export async function addReaction(
 
 /** Send POST /api/channels/:channelId/read to mark channel as read */
 export async function markChannelAsRead(channelId: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/channels/${channelId}/read`, { method: 'POST' });
+  const res = await fetch(`${API_BASE}/channels/${channelId}/read`, { method: 'POST', headers: authHeaders() });
   if (!res.ok) throw new Error(`Failed to mark channel as read: ${res.status}`);
 }
 
@@ -223,7 +223,7 @@ export async function searchMessages(
   const params = new URLSearchParams({ q: query });
   if (channelId) params.set('channelId', channelId);
   const url = `${API_BASE}/search/messages?${params}`;
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
+  const res = await fetch(url, { headers: authHeaders() });
   if (!res.ok) throw new Error(`Search failed: ${res.status}`);
   return res.json();
 }
