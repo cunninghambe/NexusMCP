@@ -41,9 +41,10 @@ export function mapApiChannel(api: ApiChannel): Channel {
     name: api.name,
     description: api.description || undefined,
     type,
-    memberCount: api.memberships
-      ? api.memberships.filter((m) => !m.leftAt).length
-      : 0,
+    memberCount: api.memberCount
+      ?? (api.memberships
+        ? api.memberships.filter((m) => !m.leftAt).length
+        : 0),
     unreadCount: (api as any).unreadCount ?? 0,
     members: api.memberships
       ? api.memberships.filter((m) => !m.leftAt).map((m) => m.agentId || m.userId || '')

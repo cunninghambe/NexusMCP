@@ -58,6 +58,7 @@ export default function SlackApp({
   const [creatingChannel, setCreatingChannel] = useState(false)
   const [sendingMessage, setSendingMessage] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { openThread, loading: threadLoading, open: openThreadFn, close: closeThreadFn, setOpenThread } = useThread()
 
   // ── Auto-scroll logic ──────────────────────────────────────────
@@ -237,6 +238,11 @@ export default function SlackApp({
     ? messages.find((m) => m.id === openThread.parentId)
     : null
 
+  const handleMenuClick = useCallback(() => {
+    setSidebarOpen(true)
+    setSidebarCollapsed(false)
+  }, [])
+
   const handleChannelSelect = useCallback((channelId: string) => {
     onChannelSelect(channelId)
     setSidebarOpen(false)
@@ -264,6 +270,8 @@ export default function SlackApp({
         onOpenDM={() => setShowAgentPicker(true)}
         presenceMap={presenceMap}
         userNames={userNames}
+        collapsed={sidebarCollapsed}
+        onCollapse={() => setSidebarCollapsed(true)}
       />
 
       {/* Main content */}
@@ -275,7 +283,8 @@ export default function SlackApp({
               users={[currentActor]}
               presenceMap={presenceMap}
               onSearch={() => setShowSearch(true)}
-              onMenuClick={() => setSidebarOpen(true)}
+              onMenuClick={handleMenuClick}
+              sidebarCollapsed={sidebarCollapsed}
             />
 
             {/* Message list */}
@@ -396,10 +405,10 @@ export default function SlackApp({
             >
               <button
                 className="mobile-header"
-                onClick={() => setSidebarOpen(true)}
+                onClick={handleMenuClick}
                 aria-label="Open sidebar"
                 style={{
-                  display: 'none',
+                  display: sidebarCollapsed ? 'flex' : 'none',
                   alignItems: 'center',
                   justifyContent: 'center',
                   width: 36,

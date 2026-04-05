@@ -9,6 +9,7 @@ interface ChannelHeaderProps {
   presenceMap?: Record<string, string>
   onSearch?: () => void
   onMenuClick?: () => void
+  sidebarCollapsed?: boolean
 }
 
 // Status dot color for agent/user status values
@@ -263,6 +264,7 @@ export default function ChannelHeader({
   presenceMap = {},
   onSearch,
   onMenuClick,
+  sidebarCollapsed = false,
 }: ChannelHeaderProps) {
   const [showMembers, setShowMembers] = useState(false)
 
@@ -293,7 +295,7 @@ export default function ChannelHeader({
           onClick={onMenuClick}
           aria-label="Open sidebar"
           style={{
-            display: 'none', /* overridden to flex by .mobile-header media query */
+            display: sidebarCollapsed ? 'flex' : 'none', /* overridden to flex by .mobile-header media query on mobile */
             alignItems: 'center',
             justifyContent: 'center',
             width: 36,

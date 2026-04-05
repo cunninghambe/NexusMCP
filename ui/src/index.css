@@ -208,7 +208,9 @@ input::placeholder, textarea::placeholder {
     left: 0;
     top: 0;
     bottom: 0;
-    width: 280px;
+    width: 280px !important;
+    min-width: 280px !important;
+    animation: slide-in-left 0.2s ease;
   }
   .sidebar-overlay {
     display: block;
@@ -222,8 +224,13 @@ input::placeholder, textarea::placeholder {
     right: 0;
     top: 0;
     bottom: 0;
-    width: 100%;
+    width: 100% !important;
+    min-width: 100% !important;
     z-index: 50;
+    animation: slide-in-right 0.2s ease;
+  }
+  .sidebar-collapse-btn {
+    display: none !important;
   }
   .mobile-header {
     display: flex !important;
@@ -237,9 +244,22 @@ input::placeholder, textarea::placeholder {
   .sidebar-overlay {
     display: none !important;
   }
-  .mobile-header {
-    display: none !important;
-  }
+  /* On desktop, hamburger visibility is controlled by inline styles (sidebarCollapsed) */
+}
+
+/* ── Panel slide animations ──────────────────────────────────────── */
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.thread-panel {
+  animation: slide-in-right 0.25s ease;
 }
 
 /* ── Date separator ──────────────────────────────────────────────── */

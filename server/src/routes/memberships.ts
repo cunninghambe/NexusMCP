@@ -43,25 +43,25 @@ function loadPaperclipApiKey(): string | null {
 const PAPERCLIP_API_BASE =
   process.env.PAPERCLIP_API_URL ?? "http://localhost:3100/api";
 
-/** Fetch agent statuses keyed by agent ID. Returns empty map on failure. */
-async function fetchAgentStatuses(
+/** Fetch agent info (name + status) keyed by agent ID. Returns empty map on failure. */
+async function fetchAgentInfo(
   agentIds: string[]
-): Promise<Map<string, string>> {
-  const statusMap = new Map<string, string>();
-  if (agentIds.length === 0) return statusMap;
+): Promise<Map<string, { name: string; status: string }>> {
+  const infoMap = new Map<string, { name: string; status: string }>();
+  if (agentIds.length === 0) return infoMap;
 
   const apiKey = loadPaperclipApiKey();
-  if (!apiKey) return statusMap;
+  if (!apiKey) return infoMap;
 
   try {
     const url = `${PAPERCLIP_API_BASE}/companies/${COMPANY_ID}/agents`;
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
-    if (!response.ok) return statusMap;
+    if (!response.ok) return infoMap;
 
     const data = await response.json();
-    const agents: Array<{ id: string; status: string }> = Array.isArray(data)
+    const agents: Array<{ id: string; name?: string; status: string }> = Array.isArray(data)
       ? data
       : Array.isArray(data?.agents)
       ? data.agents
@@ -70,14 +70,17 @@ async function fetchAgentStatuses(
     const idSet = new Set(agentIds);
     for (const agent of agents) {
       if (idSet.has(agent.id)) {
-        statusMap.set(agent.id, agent.status ?? "idle");
+        infoMap.set(agent.id, {
+          name: agent.name ?? agent.id.slice(0, 8),
+          status: agent.status ?? "idle",
+        });
       }
     }
   } catch (err) {
-    logger.warn("Failed to fetch agent statuses for member list", { error: String(err) });
+    logger.warn("Failed to fetch agent info for member list", { error: String(err) });
   }
 
-  return statusMap;
+  return infoMap;
 }
 
 const router = Router();
@@ -208,13 +211,14 @@ router.get(
       .filter((m) => m.agentId != null)
       .map((m) => m.agentId as string);
 
-    const agentStatuses = await fetchAgentStatuses(agentIds);
+    const agentInfo = await fetchAgentInfo(agentIds);
 
     const members = memberships.map((m) => {
       const isAgent = m.agentId != null;
       const memberId = isAgent ? m.agentId! : m.userId!;
+      const info = isAgent ? agentInfo.get(m.agentId!) : undefined;
       const status = isAgent
-        ? (agentStatuses.get(m.agentId!) ?? "idle")
+        ? (info?.status ?? "idle")
         : "online";
 
       return {
@@ -224,7 +228,7 @@ router.get(
         role: m.role,
         joinedAt: m.joinedAt,
         kind: isAgent ? "agent" : "user",
-        name: m.agentName ?? m.userName ?? "Unknown",
+        name: m.agentName ?? info?.name ?? m.userName ?? "Unknown",
         keyName: m.agentKeyName ?? null,
         status,
       };

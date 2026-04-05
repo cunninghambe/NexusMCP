@@ -141,6 +141,29 @@ router.get(
       }
     }
 
+    // Enrich with memberCount for all channels
+    if (results.length > 0) {
+      const allChannelIds = results.map((ch: any) => ch.id);
+      const memberCounts = await db
+        .select({
+          channelId: channelMemberships.channelId,
+          cnt: drizzleCount(),
+        })
+        .from(channelMemberships)
+        .where(
+          and(
+            inArray(channelMemberships.channelId, allChannelIds),
+            isNull(channelMemberships.leftAt)
+          )
+        )
+        .groupBy(channelMemberships.channelId);
+
+      const countMap = new Map(memberCounts.map((r: any) => [r.channelId, r.cnt]));
+      for (const ch of results) {
+        ch.memberCount = countMap.get(ch.id) ?? 0;
+      }
+    }
+
     res.json(results);
   })
 );

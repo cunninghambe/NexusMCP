@@ -12,6 +12,8 @@ interface SidebarProps {
   presenceMap?: Record<string, string>
   userNames?: Record<string, string>
   className?: string
+  collapsed?: boolean
+  onCollapse?: () => void
 }
 
 export default function ChannelSidebar({
@@ -24,6 +26,8 @@ export default function ChannelSidebar({
   presenceMap = {},
   userNames = {},
   className,
+  collapsed = false,
+  onCollapse,
 }: SidebarProps) {
   const publicChannels = channels.filter((c) => c.type === 'public')
   const privateChannels = channels.filter((c) => c.type === 'private')
@@ -153,14 +157,15 @@ export default function ChannelSidebar({
     <div
       className={className}
       style={{
-        width: 260,
-        minWidth: 260,
+        width: collapsed ? 0 : 260,
+        minWidth: collapsed ? 0 : 260,
         height: '100%',
         background: 'var(--bg-secondary)',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        borderRight: collapsed ? 'none' : '1px solid rgba(255,255,255,0.06)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        transition: 'width 0.25s ease, min-width 0.25s ease',
       }}
     >
       <div
@@ -181,6 +186,28 @@ export default function ChannelSidebar({
         >
           AI Workspace
         </h2>
+        {onCollapse && (
+          <button
+            className="sidebar-collapse-btn"
+            onClick={onCollapse}
+            title="Collapse sidebar"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              padding: 4,
+              fontSize: 16,
+              lineHeight: 1,
+              borderRadius: 'var(--radius-sm)',
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            &#x00AB;
+          </button>
+        )}
       </div>
 
       <div
