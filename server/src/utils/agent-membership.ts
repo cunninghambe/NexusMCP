@@ -143,6 +143,29 @@ export async function enrollAgentsInChannels(
   if (apiKey) {
     const paperclipAgents = await fetchPaperclipAgents(apiKey);
     agentIds = paperclipAgents.map((a) => a.id);
+
+    // Sync agent records into local DB so they appear in mentionables, member lists, etc.
+    for (const agent of paperclipAgents) {
+      try {
+        await db
+          .insert(agentsTable)
+          .values({
+            id: agent.id,
+            companyId: COMPANY_ID,
+            name: agent.name,
+            keyName: agent.urlKey || agent.name.toLowerCase().replace(/\s+/g, "-"),
+          })
+          .onConflictDoUpdate({
+            target: agentsTable.id,
+            set: {
+              name: agent.name,
+              keyName: agent.urlKey || agent.name.toLowerCase().replace(/\s+/g, "-"),
+            },
+          });
+      } catch (err) {
+        logger.warn("Failed to sync agent record", { agentId: agent.id, error: String(err) });
+      }
+    }
   }
 
   // Always fall back to local DB agents to catch any not returned by API
