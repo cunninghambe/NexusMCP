@@ -1,11 +1,12 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { db, channels, messages, channelMemberships, messageReactions, NewMessage, NewReaction } from "../db.js";
+import { db, channels, messages, channelMemberships, messageReactions, agents, NewMessage, NewReaction } from "../db.js";
 import { eq, and, isNull, desc, sql, inArray, type SQL } from "drizzle-orm";
 import { authenticate } from "../middleware/auth.js";
 import { broadcastToChannel } from "../websocket.js";
 import { logActivity, getNextSequenceNum, paramStr, asyncHandler } from "../utils/helpers.js";
 import { COMPANY_ID } from "../config.js";
+import { parseMentions, wakeupAgent } from "../utils/paperclip.js";
 
 const router = Router();
 
@@ -280,6 +281,40 @@ router.post(
       entityId: newMessage.id,
       details: { channelId, parentId: parentId ?? null },
     });
+
+    // Parse @mentions and wake up any mentioned agents (fire-and-forget)
+    if (content) {
+      const mentionedHandles = parseMentions(content);
+      if (mentionedHandles.length > 0) {
+        // Look up agents whose keyName matches any mentioned handle
+        const mentionedAgents = await db
+          .select({ id: agents.id, keyName: agents.keyName })
+          .from(agents)
+          .where(
+            and(
+              eq(agents.companyId, COMPANY_ID),
+              inArray(agents.keyName, mentionedHandles)
+            )
+          );
+
+        // Determine sender display name for the wakeup reason
+        const senderName =
+          actor.kind === "agent"
+            ? actor.keyName ?? actor.id
+            : actor.id;
+
+        const messagePreview =
+          content.length > 120 ? content.slice(0, 117) + "..." : content;
+
+        for (const agent of mentionedAgents) {
+          // Fire-and-forget: errors are caught inside wakeupAgent
+          wakeupAgent(
+            agent.id,
+            `You were mentioned in NexusMCP channel #${channel.name} by ${senderName}: ${messagePreview}`
+          );
+        }
+      }
+    }
 
     res.status(201).json(newMessage);
   })

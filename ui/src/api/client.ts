@@ -179,6 +179,22 @@ export async function createDM(targetAgentId: string): Promise<Channel> {
   return mapApiChannel(data);
 }
 
+export interface Mentionable {
+  id: string;
+  handle: string;
+  displayName: string;
+  kind: 'agent' | 'user';
+}
+
+/** List all mentionable agents and users */
+export async function getMentionables(): Promise<Mentionable[]> {
+  const res = await fetch(`${API_BASE}/mentionables`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`Failed to fetch mentionables: ${res.status}`);
+  return res.json();
+}
+
 /** List all agents in the company */
 export async function getAgents(): Promise<User[]> {
   const res = await fetch(`${API_BASE}/agents`, {

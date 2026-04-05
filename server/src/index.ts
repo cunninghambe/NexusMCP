@@ -23,6 +23,7 @@ import uploadsRouter from "./routes/uploads.js";
 import { receiptsRouter } from "./routes/receipts.js";
 import channelMembershipRouter from "./routes/channel-membership.js";
 import agentsRouter from "./routes/agents.js";
+import mentionablesRouter from "./routes/mentionables.js";
 import searchRouter from "./routes/search.js";
 import loginRouter from "./routes/login.js";
 import { requestMetrics, errorTracker, rateLimiter } from "./middleware/monitoring.js";
@@ -69,6 +70,7 @@ app.use("/api/channels", messagesRouter);
 app.use("/api", searchRouter);
 app.use("/api/channels", receiptsRouter);
 app.use("/api/agents", agentsRouter);
+app.use("/api", mentionablesRouter);
 app.use("/api/messages", reactionsRouter);
 
 // ─── Membership Routes ──────────────────────────────

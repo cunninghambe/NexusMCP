@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import Avatar from './Avatar'
 import EmojiPicker from './EmojiPicker'
 import ToolCallBlock from './ToolCallBlock'
@@ -8,6 +8,39 @@ import { formatTimeAgo, formatTimestamp } from '../utils'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import CodeBlock from './CodeBlock'
+
+/**
+ * Walk a React children tree and highlight any @mention tokens inside text nodes.
+ * Non-string children are passed through untouched.
+ */
+function renderWithMentions(children: React.ReactNode): React.ReactNode {
+  return React.Children.map(children, (child) => {
+    if (typeof child !== 'string') return child
+    // Split on @mentions, keeping the delimiter in the array
+    const parts = child.split(/(@[a-zA-Z0-9_-]+)/g)
+    if (parts.length === 1) return child
+    return parts.map((part, i) => {
+      if (/^@[a-zA-Z0-9_-]+$/.test(part)) {
+        return (
+          <span
+            key={i}
+            style={{
+              background: 'rgba(99,102,241,0.18)',
+              color: 'var(--accent-primary, #6366f1)',
+              borderRadius: 4,
+              padding: '0 3px',
+              fontWeight: 600,
+              fontSize: '0.95em',
+            }}
+          >
+            {part}
+          </span>
+        )
+      }
+      return part
+    })
+  })
+}
 
 interface MessageBubbleProps {
   message: Message
@@ -137,20 +170,24 @@ export default function MessageBubble({ message, groupedWithPrevious, onThreadCl
         {message.content && (
           <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)' }}>
             <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code({ inline, className, children, ...props }) {
-                const match = /language-(\w+)/.exec(className || '')
-                if (!inline && match) {
-                  return <CodeBlock language={match[1]}>{String(children).replace(/\n$/, '')}</CodeBlock>
-                }
-                return <code className={className} {...props}>{children}</code>
-              },
-              pre({ children }) {
-                return <>{children}</>
-              },
-            }}
-          >
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ inline, className, children, ...props }) {
+                  const match = /language-(\w+)/.exec(className || '')
+                  if (!inline && match) {
+                    return <CodeBlock language={match[1]}>{String(children).replace(/\n$/, '')}</CodeBlock>
+                  }
+                  return <code className={className} {...props}>{children}</code>
+                },
+                pre({ children }) {
+                  return <>{children}</>
+                },
+                // Render @mentions with a highlighted chip
+                p({ children }) {
+                  return <p>{renderWithMentions(children)}</p>
+                },
+              }}
+            >
               {message.content}
             </ReactMarkdown>
           </div>
